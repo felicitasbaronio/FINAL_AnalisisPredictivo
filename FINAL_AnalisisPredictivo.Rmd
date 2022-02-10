@@ -1,0 +1,547 @@
+---
+title: "FINAL_AnalisisPredictivo"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(readr)
+library(ggplot2)
+library(lessR)
+library("mice")
+library(dplyr)
+library(ggstatsplot)
+library(tidyr)
+library(fastDummies)
+library(corrplot)
+library(caret)
+library(randomForest)
+```
+
+
+```{r}
+datos = read.csv("HR.csv", header=TRUE, sep=",")
+```
+
+# INFORMACIÓN DE LA BASE
+```{r}
+head(datos)
+```
+```{r}
+dim(datos)
+```
+
+```{r}
+str(datos)
+```
+
+```{r}
+df.ispromoted <- data.frame(promoted = datos$is_promoted)
+```
+
+```{r}
+table(datos$is_promoted)
+```
+
+```{r}
+datos$is_promoted <- as.factor(datos$is_promoted)
+```
+
+```{r}
+ggplot(data = datos) + geom_bar(mapping = aes(x = is_promoted), fill="#0066cc") + theme(panel.grid = element_blank()) + xlab("") + ylab("")
+```
+
+```{r}
+PieChart(promoted, values = "%", data = df.ispromoted,
+         fill = c("lightblue", "blue"), main = "Promoción vs. No promoción")
+```
+
+
+# MISSINGS
+
+```{r}
+missings = data.frame(colSums(datos == "\\N" | datos == "" | is.na(datos)))
+```
+
+```{r}
+md.pattern(datos,rotate.names=90)
+```
+
+```{r}
+table(datos$department)
+```
+
+```{r}
+table(datos$region)
+```
+
+```{r}
+table(datos$education)
+```
+```{r}
+datos$education[datos$education == ""] <- NA
+```
+```{r}
+mean(is.na(datos$education))
+```
+```{r}
+datos$education[is.na(datos$education)] = median(datos$education,na.rm=TRUE)
+```
+
+```{r}
+table(datos$gender)
+```
+
+```{r}
+table(datos$recruitment_channel)
+```
+
+```{r}
+table(datos$no_of_trainings)
+```
+
+```{r}
+table(datos$age)
+```
+
+```{r}
+table(datos$previous_year_rating)
+```
+```{r}
+datos$previous_year_rating[datos$previous_year_rating == ""] <- NA
+```
+```{r}
+mean(is.na(datos$previous_year_rating))
+```
+```{r}
+datos$previous_year_rating[is.na(datos$previous_year_rating)] = median(datos$previous_year_rating,na.rm=TRUE)
+```
+
+```{r}
+table(datos$length_of_service)
+```
+
+```{r}
+table(datos$awards_won)
+```
+
+```{r}
+table(datos$avg_training_score)
+```
+
+
+# ANALISIS UNIVARIADO
+
+## CATEGORICAS
+
+department
+```{r}
+ggplot(data = datos) + geom_bar(mapping = aes(x = department), fill="#003366") + theme(panel.grid = element_blank()) + xlab("") + ylab("")
+```
+
+region
+```{r}
+ggplot(data = datos) + geom_bar(mapping = aes(x = region), fill="#0066cc") + theme(panel.grid = element_blank()) + xlab("") + ylab("")
+```
+
+education
+```{r}
+ggplot(data = datos) + geom_bar(mapping = aes(x = education), fill="#0066cc") + theme(panel.grid = element_blank()) + xlab("") + ylab("")
+```
+
+gender
+```{r}
+PieChart(gender, hole = 0, values = "%", data = datos,
+         fill = c("#3399CC", "#3366CC"), main = "")
+```
+
+recruitment_channel
+```{r}
+PieChart(recruitment_channel, hole = 0, values = "%", data = datos,
+         fill = c("#000066", "#00000C", "#0033CC" ), main = "")
+```
+
+
+
+# CONTINUAS
+
+no_of_trainings
+```{r}
+summary(datos$no_of_trainings)
+```
+```{r}
+boxplot(log(datos$no_of_trainings), main = "", ylab = "no_of_trainings", col = "#0066cc", border = "#0066cc")
+```
+```{r}
+hist(datos$no_of_trainings, main = "", xlab = "no_of_trainings", ylab = "Frequency",  col = "#0066cc")
+```
+```{r}
+Q <- quantile(datos$no_of_trainings, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$no_of_trainings)
+```
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+```{r}
+datos$no_of_trainings[datos$no_of_trainings > up] <- mean(datos$no_of_trainings)
+datos$no_of_trainings[datos$no_of_trainings < low] <- mean(datos$no_of_trainings)
+```
+
+age
+```{r}
+summary(datos$age)
+```
+```{r}
+boxplot(datos$age, main = "", ylab = "age", col = "#0066cc", border = "#0066cc")
+```
+```{r}
+Q <- quantile(datos$age, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$age)
+```
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+```{r}
+datos$age[datos$age > up] <- mean(datos$age)
+datos$age[datos$age < low] <- mean(datos$age)
+```
+
+previous_year_rating
+```{r}
+summary(datos$previous_year_rating)
+```
+```{r}
+boxplot(datos$age, main = "", ylab = "previous_year_rating", col = "#006699")
+```
+```{r}
+Q <- quantile(datos$previous_year_rating, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$previous_year_rating)
+```
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+```{r}
+datos$previous_year_rating[datos$previous_year_rating > up] <- mean(datos$previous_year_rating)
+datos$previous_year_rating[datos$previous_year_rating < low] <- mean(datos$previous_year_rating)
+```
+
+length_of_service
+```{r}
+summary(datos$length_of_service)
+```
+```{r}
+boxplot(datos$length_of_service, main = "", ylab = "length_of_service", col = "#000099")
+```
+```{r}
+Q <- quantile(datos$length_of_service, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$length_of_service)
+```
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+```{r}
+datos$length_of_service[datos$length_of_service > up] <- mean(datos$length_of_service)
+datos$length_of_service[datos$length_of_service< low] <- mean(datos$length_of_service)
+```
+
+
+awards_won
+```{r}
+summary(datos$awards_won)
+```
+```{r}
+boxplot(datos$awards_won, main = "", ylab = "awards_won", col = "#0099FF")
+```
+```{r}
+hist(datos$awards_won, main = "", xlab = "awards_won", ylab = "Frequency",  col = "#0099FF")
+```
+```{r}
+Q <- quantile(datos$awards_won, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$awards_won)
+```
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+```{r}
+datos$awards_won[datos$awards_won > up] <- mean(datos$awards_won)
+datos$awards_won[datos$awards_won < low] <- mean(datos$awards_won)
+```
+
+avg_training_score
+```{r}
+summary(datos$avg_training_score)
+```
+```{r}
+boxplot(datos$avg_training_score, main = "", ylab = "avg_training_score", col = "#0000cc")
+```
+```{r}
+Q <- quantile(datos$avg_training_score, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$avg_training_score)
+```
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+
+
+# ANÁLISIS BIVARIADO
+
+## Chi-Square Test
+```{r}
+chisq.test(datos$is_promoted,datos$department)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$region)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$education)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$gender)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$recruitment_channel)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$no_of_trainings)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$age)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$previous_year_rating)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$length_of_service)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$awards_won)
+```
+```{r}
+chisq.test(datos$is_promoted,datos$avg_training_score)
+```
+
+# VARIABLES CATEGORICAS VS. VARIABLE TARGET
+
+```{r}
+ggplot(datos, 
+       aes(x = department, 
+           fill = is_promoted)) + 
+  geom_bar(position = "dodge") +  theme(panel.grid = element_blank()) + xlab("") + ylab("") + scale_fill_brewer(palette="Set1")
+```
+
+```{r}
+datos %>% 
+  group_by(department,is_promoted) %>% 
+  summarise(freq = n()) %>% 
+  ungroup() %>% 
+  pivot_wider(names_from = "is_promoted",values_from = "freq",names_prefix = "promoted") %>% 
+  mutate(prop_promoted = promoted1/(promoted0+promoted1)) %>% 
+  arrange(-prop_promoted) %>% 
+  mutate(prop_promoted = scales::percent(prop_promoted))
+```
+
+```{r}
+ggplot(datos, 
+       aes(x = education, 
+           fill = is_promoted)) + 
+  geom_bar(position = "dodge") +  theme(panel.grid = element_blank()) + xlab("") + ylab("") + scale_fill_brewer(palette="Set1")
+```
+
+```{r}
+datos %>% 
+  group_by(education,is_promoted) %>% 
+  summarise(freq = n()) %>% 
+  ungroup() %>% 
+  pivot_wider(names_from = "is_promoted",values_from = "freq",names_prefix = "promoted") %>% 
+  mutate(prop_promoted = promoted1/(promoted0+promoted1)) %>% 
+  arrange(-prop_promoted) %>% 
+  mutate(prop_promoted = scales::percent(prop_promoted))
+```
+
+```{r}
+datos %>% 
+  ggplot(aes(avg_training_score, fill=is_promoted)) +
+  geom_density(alpha = 0.5) + scale_fill_brewer(palette="RdYlBu") +  theme(panel.grid = element_blank())
+```
+
+
+
+## Matriz de Correlación
+
+```{r}
+glm_best <- glm(formula = is_promoted ~ department + region + education + no_of_trainings + age + previous_year_rating + length_of_service  + awards_won. + avg_training_score, family = "binomial", data = datos[, -1])
+summary(glm_best)
+```
+
+Chequeo cuales son las variables con p-value < 0.05, para asi convertir en dummys a las mismas. 
+```{r}
+datos$'region_4'[datos$region == "region_4"] <- 1
+datos$'region_5'[datos$region == "region_5"] <- 1
+datos$'region_9'[datos$region == "region_9"] <- 1
+datos$'region_32'[datos$region == "region_32"] <- 1
+datos$'region_34'[datos$region == "region_34"] <- 1
+datos$region_4[is.na(datos$region_4)] <- 0
+datos$region_5[is.na(datos$region_5)] <- 0
+datos$region_9[is.na(datos$region_9)] <- 0
+datos$region_32[is.na(datos$region_32)] <- 0
+datos$region_34[is.na(datos$region_34)] <- 0
+```
+
+```{r}
+datos <- dummy_cols(datos, select_columns = c("department", "education", "gender", "recruitment_channel"))
+```
+
+```{r}
+head(datos)
+```
+
+
+```{r}
+datos$region = NULL
+datos$department = NULL
+datos$education = NULL
+datos$gender = NULL
+datos$recruitment_channel = NULL
+datos$length_of_service = NULL
+```
+
+```{r}
+str(datos)
+```
+
+```{r}
+datos$employee_id <- as.numeric(datos$employee_id)
+datos$awards_won. <- as.numeric(datos$awards_won.)
+datos$avg_training_score <- as.numeric(datos$avg_training_score)
+datos$employee_id <- as.numeric(datos$employee_id)
+datos$department_Analytics <- as.numeric(datos$department_Analytics)
+datos$department_Finance <- as.numeric(datos$department_Finance)
+datos$department_HR <- as.numeric(datos$department_HR)
+datos$department_Legal <- as.numeric(datos$department_Legal)
+datos$department_Operations <- as.numeric(datos$department_Operations)
+datos$department_Procurement <- as.numeric(datos$department_Procurement)
+datos$`department_R&D` <- as.numeric(datos$`department_R&D`)
+datos$`department_Sales & Marketing` <- as.numeric(datos$`department_Sales & Marketing`)
+datos$department_Technology <- as.numeric(datos$department_Technology)
+datos$`education_Bachelor's` <- as.numeric(datos$`education_Bachelor's`)
+datos$`education_Below Secondary` <- as.numeric(datos$`education_Below Secondary`)
+datos$`education_Master's & above` <- as.numeric(datos$`education_Master's & above`)
+datos$gender_f <- as.numeric(datos$gender_f)
+datos$gender_m <- as.numeric(datos$gender_m)
+datos$recruitment_channel_other <- as.numeric(datos$recruitment_channel_other)
+datos$recruitment_channel_referred <- as.numeric(datos$recruitment_channel_referred)
+datos$recruitment_channel_sourcing <- as.numeric(datos$recruitment_channel_sourcing)
+datos$is_promoted <- as.numeric(datos$is_promoted)
+```
+
+```{r}
+str(datos)
+```
+
+```{r}
+head(datos)
+```
+
+```{r}
+colnames(datos)[20] <- "department_RD"
+colnames(datos)[21] <- "department_Sales_and_Marketing"
+colnames(datos)[23] <- "education_Bachelors"
+colnames(datos)[24] <- "education_BelowSecondary"
+colnames(datos)[25] <- "education_Masters_and_above"
+```
+
+
+```{r}
+correlacion <- cor(datos, method="pearson")
+```
+
+```{r}
+colores <- colorRampPalette(c("#53942F", "#9ED470", "#FFFFFF", "#F6796A","#CB1618"))
+```
+
+
+```{r}
+corrplot(correlacion, method = "shade", shade.col = NA, tl.col = "black", tl.srt = 45, col = colores(200))
+```
+
+
+```{r}
+write.csv(datos,'FINAL_AnalisisPredictivo.csv')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
